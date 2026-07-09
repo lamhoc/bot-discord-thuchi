@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { Pool } = require('pg');
 const express = require('express');
-const moment = require('moment');
+const moment = require('moment-timezone'); // Sử dụng múi giờ chuẩn
 
 const client = new Client({
     intents: [
@@ -12,22 +12,13 @@ const client = new Client({
     ]
 });
 
-// 🔎 ĐIỀN ID PHÒNG CHAT BẠN MUỐN BOT GỬI BÁO CÁO CUỐI NGÀY VÀO ĐÂY
+// ID phòng chat nhận thông báo cuối ngày của bạn
 const REPORT_CHANNEL_ID = '1416225137291821126'; 
 
-// Kết nối database Supabase Online
-// Kết nối database Supabase Online (Ép chạy IPv4 dứt điểm)
-const net = require('net');
-
-// Kết nối database Supabase Online - Ép phân giải IPv4 dứt điểm
+// Kết nối database Supabase gọn gàng, an toàn
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    // Hàm đè cấu hình để ép Node.js kết nối qua luồng IPv4 trên Render
-    stream: (options) => {
-        options.family = 4; // Bắt buộc sử dụng IPv4
-        return net.connect(options);
-    }
+    ssl: { rejectUnauthorized: false }
 });
 
 pool.connect((err) => {
@@ -42,13 +33,15 @@ function parseAmount(str) {
     return parseInt(cleanStr);
 }
 
-// 🕒 HÀM TỰ ĐỘNG GỬI BÁO CÁO VÀ RESET DATA VÀO CUỐI NGÀY
+// 🕒 HÀM TỰ ĐỘNG GỬI BÁO CÁO VÀ RESET DATA VÀO 23:59 (GIỜ VIỆT NAM)
 function startDailyResetJob() {
     setInterval(async () => {
-        const now = moment();
+        // Ép hệ thống kiểm tra theo đúng múi giờ Việt Nam
+        const now = moment().tz("Asia/Ho_Chi_Minh");
+        
         // Kiểm tra xem có đúng là 23 giờ 59 phút không
         if (now.hour() === 23 && now.minute() === 59) {
-            console.log('🕒 Đang tiến hành tổng kết và xóa dữ liệu ngày hôm nay...');
+            console.log('🕒 Đúng 23:59 VN, đang tiến hành tổng kết và xóa dữ liệu ngày hôm nay...');
             try {
                 const channel = await client.channels.fetch(REPORT_CHANNEL_ID);
                 if (!channel) return console.error('❌ Không tìm thấy kênh Discord để gửi báo cáo!');
@@ -65,7 +58,7 @@ function startDailyResetJob() {
                 const dailyEmbed = new EmbedBuilder()
                     .setColor(0xffd700)
                     .setTitle(`🎯 TỔNG KẾT TÀI CHÍNH CUỐI NGÀY (${now.format('DD/MM/YYYY')})`)
-                    .setDescription('Hệ thống sẽ tự động dọn dẹp bộ nhớ ngay sau báo cáo này.')
+                    .setDescription('Hệ thống sẽ tự động dọn dẹp bộ nhớ ngay sau báo cáo này để tránh đầy dữ liệu.')
                     .addFields(
                         { name: '💰 Tổng Thu Vào', value: `📈 ${totalIncome.toLocaleString('vi-VN')} VNĐ`, inline: true },
                         { name: '💸 Tổng Chi Ra', value: `📉 ${totalExpense.toLocaleString('vi-VN')} VNĐ`, inline: true },
@@ -89,7 +82,7 @@ function startDailyResetJob() {
 
 client.once('ready', () => {
     console.log(`🤖 Bot ${client.user.tag} đã online!`);
-    startDailyResetJob(); // Kích hoạt bộ hẹn giờ khi bot khởi động thành công
+    startDailyResetJob(); 
 });
 
 client.on('messageCreate', async (message) => {
@@ -169,6 +162,6 @@ client.on('messageCreate', async (message) => {
 client.login(process.env.DISCORD_TOKEN);
 
 const app = express();
-app.get('/', (req, res) => res.send('Bot đang chạy ngon lành và tự động reset cuối ngày!'));
+app.get('/', (req, res) => res.send('Bot hoạt động ổn định và tự động dọn dẹp cuối ngày!'));
 const port = process.env.PORT || 10000;
 app.listen(port, () => console.log(`Cổng mạng đã mở tại port ${port}`));
