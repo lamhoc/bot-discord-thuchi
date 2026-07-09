@@ -17,13 +17,15 @@ const REPORT_CHANNEL_ID = '1416225137291821126';
 
 // Kết nối database Supabase Online
 // Kết nối database Supabase Online (Ép chạy IPv4 dứt điểm)
+const net = require('net');
+
+// Kết nối database Supabase Online - Ép phân giải IPv4 dứt điểm
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    // Cấu hình ép buộc Node.js ưu tiên IPv4 để sửa lỗi ENETUNREACH trên Render
-    connector: (DATABASE_URL, options) => {
-        const net = require('net');
-        options.family = 4; // Ép buộc sử dụng IPv4
+    // Hàm đè cấu hình để ép Node.js kết nối qua luồng IPv4 trên Render
+    stream: (options) => {
+        options.family = 4; // Bắt buộc sử dụng IPv4
         return net.connect(options);
     }
 });
